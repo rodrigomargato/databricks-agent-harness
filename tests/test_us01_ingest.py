@@ -105,6 +105,8 @@ def test_add_load_metadata_preserves_source_fields():
     assert result["_load_year"].tolist() == [2025]
 
 
+
+
 def test_read_csv_chunks_counts_all_rows(tmp_path):
     archive = tmp_path / "contracts.zip"
     with ZipFile(archive, "w") as output:

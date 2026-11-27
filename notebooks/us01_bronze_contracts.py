@@ -141,6 +141,7 @@ download_to_volume(source_url, archive_path)
 table_name = f"{catalog_name}.{bronze_schema}.bronze_contracts"
 source_count = 0
 
+
 for pandas_chunk in read_csv_chunks(archive_path):
     metadata_chunk = add_load_metadata(
         pandas_chunk,
