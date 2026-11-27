@@ -2,7 +2,7 @@
 date: 2026-11-27 12:00
 area: databricks-sql-query
 status: open
-seen: 1
+seen: 2
 ---
 
 # Read-only query agent could not find Databricks CLI
@@ -11,3 +11,4 @@ seen: 1
 - Cause: the delegated agent's shell did not have the WinGet-installed Databricks CLI directory on PATH.
 - Fix: none yet; retry with the known installed CLI directory added to PATH in the agent's execution environment.
 - Prevention: `skills/databricks/databricks-sql-query/SKILL.md` should describe how to run the read-only wrapper when WinGet CLI installation is not in the agent shell PATH.
+- Seen again: 2026-11-27 14:27, the CLI was not on PowerShell PATH despite being installed through WinGet; the executable was found under `AppData\Local\Microsoft\WinGet\Packages`.
