@@ -1,0 +1,11 @@
+{
+  "result": {
+    "resources": [
+      {
+        "name": "Lista de códigos CPV",
+        "url": "https://example.test/cpv-list.csv",
+        "source_date": "2026-11-27"
+      }
+    ]
+  }
+}
