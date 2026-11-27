@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from shutil import copyfile
 from zipfile import ZipFile
 
 import pandas as pd
@@ -9,7 +10,9 @@ from src.us01_ingest import (
     add_load_metadata,
     download_to_volume,
     read_csv_chunks,
+    read_xlsx_chunks,
     replace_bronze_partition,
+    resolve_catalog_resource,
     resolve_catalog_url,
 )
 
@@ -30,6 +33,24 @@ def test_resolve_catalog_url_selects_requested_year():
 def test_resolve_catalog_url_rejects_missing_year():
     with pytest.raises(ValueError, match="No catalog resource found for year 2026"):
         resolve_catalog_url({"result": {"resources": []}}, 2026)
+
+
+def test_resolve_catalog_resource_returns_source_date():
+    catalog = {
+        "result": {
+            "resources": [
+                {
+                    "name": "Contratos 2025",
+                    "url": "https://example.test/contracts-2025.zip",
+                    "source_date": "2025-12-31",
+                }
+            ]
+        }
+    }
+
+    resource = resolve_catalog_resource(catalog, 2025)
+    assert resource["url"] == "https://example.test/contracts-2025.zip"
+    assert resource["source_date"] == "2025-12-31"
 
 
 def test_download_to_volume_writes_every_chunk(tmp_path):
@@ -93,9 +114,30 @@ def test_read_csv_chunks_counts_all_rows(tmp_path):
     combined = pd.concat(chunks, ignore_index=True)
 
     assert combined.to_dict("records") == [
-        {"id": "A", "value": 1},
-        {"id": "B", "value": 2},
-        {"id": "C", "value": 3},
+        {"id": "A", "value": "1"},
+        {"id": "B", "value": "2"},
+        {"id": "C", "value": "3"},
+    ]
+
+
+def test_read_xlsx_chunks_counts_all_rows(tmp_path):
+    workbook_path = tmp_path / "contracts.xlsx"
+    from openpyxl import Workbook
+
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.append(["id", "value"])
+    sheet.append(["A", "001"])
+    sheet.append(["B", "002"])
+    workbook.save(workbook_path)
+    archive_path = tmp_path / "contracts.zip"
+    copyfile(workbook_path, archive_path)
+
+    chunks = list(read_xlsx_chunks(archive_path, chunk_size=1))
+
+    assert pd.concat(chunks).to_dict("records") == [
+        {"id": "A", "value": "001"},
+        {"id": "B", "value": "002"},
     ]
 
 

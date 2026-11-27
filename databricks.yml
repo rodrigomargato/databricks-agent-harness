@@ -3,6 +3,25 @@
 bundle:
   name: agent_harness_lab
 
+include:
+  - resources/*.yml
+
+variables:
+  catalog_url:
+    description: dados.gov.pt catalog API URL
+  contracts_year:
+    description: Contracts year to ingest
+    default: "2025"
+  catalog:
+    description: Unity Catalog catalog
+    default: workspace
+  bronze_schema:
+    description: Bronze schema
+    default: contratos_pt
+  landing_volume:
+    description: Managed Volume for raw archives
+    default: landing
+
 targets:
   dev:
     mode: development

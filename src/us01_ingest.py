@@ -10,6 +10,7 @@ from urllib.request import urlopen
 from zipfile import ZipFile
 
 import pandas as pd
+from openpyxl import load_workbook
 
 
 class DownloadError(RuntimeError):
@@ -34,6 +35,28 @@ def resolve_catalog_url(catalog: dict, year: int) -> str:
             )
             if url:
                 return str(url)
+
+    raise ValueError("No catalog resource found for year {}".format(year))
+
+
+def resolve_catalog_resource(catalog: dict, year: int) -> dict:
+    """Return the catalog resource selected for the requested year."""
+    result = catalog.get("result", catalog)
+    resources = result.get("resources", [])
+
+    for resource in resources:
+        searchable = " ".join(
+            str(resource.get(field, ""))
+            for field in ("name", "title", "description", "id", "identifier", "url")
+        )
+        if str(year) in searchable:
+            url = (
+                resource.get("url")
+                or resource.get("download_url")
+                or resource.get("resource_url")
+            )
+            if url:
+                return dict(resource, url=str(url))
 
     raise ValueError("No catalog resource found for year {}".format(year))
 
@@ -89,10 +112,46 @@ def read_csv_chunks(
     csv_member: str | None = None,
 ) -> Iterator[pd.DataFrame]:
     """Read CSV rows in bounded chunks without loading the archive into memory."""
+    with ZipFile(archive_path) as probe:
+        members = probe.namelist()
+    if "[Content_Types].xml" in members and "xl/workbook.xml" in members:
+        yield from read_xlsx_chunks(archive_path, chunk_size)
+        return
+
     member = csv_member or find_csv_member(archive_path)
     with ZipFile(archive_path) as archive:
         with archive.open(member) as csv_file:
-            yield from pd.read_csv(csv_file, chunksize=chunk_size, low_memory=False)
+            yield from pd.read_csv(
+                csv_file,
+                chunksize=chunk_size,
+                dtype=str,
+                keep_default_na=False,
+                low_memory=False,
+            )
+
+
+def read_xlsx_chunks(
+    archive_path: str | Path,
+    chunk_size: int = 100_000,
+) -> Iterator[pd.DataFrame]:
+    """Stream a workbook in bounded row chunks without full-workbook loading."""
+    with open(archive_path, "rb") as workbook_file:
+        workbook = load_workbook(workbook_file, read_only=True, data_only=True)
+        sheet = workbook.active
+        rows = sheet.iter_rows(values_only=True)
+        headers = list(next(rows))
+        buffer = []
+
+        for row in rows:
+            values = ["" if value is None else str(value) for value in row]
+            buffer.append(dict(zip(headers, values)))
+            if len(buffer) == chunk_size:
+                yield pd.DataFrame(buffer)
+                buffer = []
+
+        if buffer:
+            yield pd.DataFrame(buffer)
+        workbook.close()
 
 
 def add_load_metadata(
